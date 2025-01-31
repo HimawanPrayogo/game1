@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Himawan Prayogo Tetris Demo</title>
+    <style>
+        body {
+            text-align: center;
+            font-family: Arial, sans-serif;
+            background-color: #111;
+            color: white;
+        }
+        canvas {
+            background-color: black;
+            display: block;
+            margin: auto;
+            border: 2px solid white;
+        }
+        #score {
+            font-size: 20px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Himawan's Tetris</h1>
+    <canvas id="gameCanvas" width="300" height="600"></canvas>
+    <div id="score">Skor: 0</div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        const ROWS = 20, COLS = 10, BLOCK_SIZE = 30;
+        const COLORS = ["cyan", "blue", "orange", "yellow", "green", "purple", "red"];
+        
+        let board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+        let score = 0;
+        
+        const SHAPES = [
+            [[1, 1, 1, 1]], // I
+            [[1, 1, 1], [0, 1, 0]], // T
+            [[1, 1, 1], [1, 0, 0]], // L
+            [[1, 1, 1], [0, 0, 1]], // J
+            [[1, 1], [1, 1]], // O
+            [[0, 1, 1], [1, 1, 0]], // S
+            [[1, 1, 0], [0, 1, 1]] // Z
+        ];
+
+        let currentPiece = getRandomPiece();
+        let x = 3, y = 0;
+        let dropInterval = 500, lastDrop = Date.now();
+
+        function getRandomPiece() {
+            let index = Math.floor(Math.random() * SHAPES.length);
+            return { shape: SHAPES[index], color: COLORS[index] };
+        }
+
+        function drawBlock(x, y, color) {
+            ctx.fillStyle = color;
+            ctx.fillRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+            ctx.strokeStyle = "black";
+            ctx.strokeRect(x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
+        }
+
+        function drawBoard() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            board.forEach((row, r) => row.forEach((cell, c) => {
+                if (cell) drawBlock(c, r, cell);
+            }));
+            currentPiece.shape.forEach((row, r) => row.forEach((cell, c) => {
+                if (cell) drawBlock(x + c, y + r, currentPiece.color);
+            }));
+        }
+
+        function canMove(newX, newY, shape) {
+            return shape.every((row, r) =>
+                row.every((cell, c) =>
+                    !cell || (newX + c >= 0 && newX + c < COLS && newY + r < ROWS && !board[newY + r]?.[newX + c])
+                )
+            );
+        }
+
+        function rotatePiece() {
+            let newShape = currentPiece.shape[0].map((_, i) => currentPiece.shape.map(row => row[i])).reverse();
+            if (canMove(x, y, newShape)) currentPiece.shape = newShape;
+        }
+
+        function dropPiece() {
+            if (canMove(x, y + 1, currentPiece.shape)) {
+                y++;
+            } else {
+                currentPiece.shape.forEach((row, r) => row.forEach((cell, c) => {
+                    if (cell) board[y + r][x + c] = currentPiece.color;
+                }));
+                checkLines();
+                currentPiece = getRandomPiece();
+                x = 3;
+                y = 0;
+                if (!canMove(x, y, currentPiece.shape)) {
+                    alert("Game Over! Skor: " + score);
+                    board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+                    score = 0;
+                }
+            }
+            drawBoard();
+        }
+
+        function checkLines() {
+            board = board.filter(row => row.some(cell => !cell));
+            while (board.length < ROWS) {
+                board.unshift(Array(COLS).fill(0));
+                score += 10;
+            }
+            document.getElementById("score").innerText = "Skor: " + score;
+        }
+
+        function movePiece(dir) {
+            if (canMove(x + dir, y, currentPiece.shape)) x += dir;
+        }
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "ArrowLeft") movePiece(-1);
+            if (e.key === "ArrowRight") movePiece(1);
+            if (e.key === "ArrowDown") dropPiece();
+            if (e.key === "ArrowUp") rotatePiece();
+            drawBoard();
+        });
+
+        function update() {
+            if (Date.now() - lastDrop > dropInterval) {
+                dropPiece();
+                lastDrop = Date.now();
+            }
+            requestAnimationFrame(update);
+        }
+
+        drawBoard();
+        update();
+    </script>
+</body>
+</html>
